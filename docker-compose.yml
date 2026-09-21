@@ -1,0 +1,16 @@
+services:
+  openvpn-as:
+    image: openvpn/openvpn-as:latest
+    container_name: ${CONTAINER_NAME:-openvpn-as}
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - MKNOD
+      - NET_ADMIN
+    ports:
+      - "${HOST_ADMIN_PORT:-943}:943"
+      - "${HOST_HTTPS_PORT:-8443}:443"
+      - "${HOST_UDP_PORT:-1194}:1194/udp"
+    volumes:
+      - ${OVPN_DATA:-/root/openvpn-data}:/openvpn
+    restart: unless-stopped
