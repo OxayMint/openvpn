@@ -67,7 +67,7 @@ docker ps --format '{{.Names}} {{.Ports}}'
    - Hostname / public IP: `13.143.223.160`
    - **TCP port number to 8443** (the host port you published, not 443)
    - UDP port 1194
-4. Create a user, then export an `.ovpn` (see below).
+4. Create a user, then export an `.ovpn` (see below). Declared users live in `users.json` (`calogero007` is the current client).
 
 If you skip step 3, downloaded `.ovpn` files still say `remote ... 443` and TCP connections fail while UDP may still work.
 
@@ -75,22 +75,31 @@ If you skip step 3, downloaded `.ovpn` files still say `remote ... 443` and TCP 
 
 Do not hand-write a config. Access Server embeds CA, client cert, and tls-crypt in the profile. Generate it from the running container, then import that file in [OpenVPN Connect](https://openvpn.net/client/).
 
-Easiest import (autologin — connects without typing a password):
+Easiest import (autologin — connects without typing a password). This creates `calogero007` if it does not already exist:
 
 ```bash
-chmod +x scripts/export-profile.sh
+chmod +x scripts/export-profile.sh scripts/provision-users.sh
 sudo ./scripts/export-profile.sh \
-  --user vpnuser \
+  --user calogero007 \
   --password 'choose-a-strong-password' \
   --autologin \
-  --out ./profiles/vpnuser.ovpn
+  --out ./profiles/calogero007.ovpn
 ```
 
-Copy `profiles/vpnuser.ovpn` to your laptop/phone and import it:
+Or provision every user in `users.json`:
+
+```bash
+USER_CALOGERO007_PASSWORD='choose-a-strong-password' \
+  sudo -E ./scripts/provision-users.sh
+```
+
+If you are not on the VPN host, set `AS_ADMIN_PASSWORD` (and optionally `AS_ADMIN_USER`) in `.env`. The export script then uses the Access Server Web API at `https://13.143.223.160:943` instead of `docker exec`.
+
+Copy `profiles/calogero007.ovpn` to your laptop/phone and import it:
 
 - **Windows / macOS:** OpenVPN Connect → **Add** → **File** → select the `.ovpn`
 - **Android / iOS:** OpenVPN Connect → **Add** → **File** / share the `.ovpn` into the app
-- **CLI:** `sudo openvpn --config vpnuser.ovpn`
+- **CLI:** `sudo openvpn --config calogero007.ovpn`
 
 The export rewrites remotes to this host mapping:
 
@@ -99,7 +108,7 @@ remote 13.143.223.160 1194 udp
 remote 13.143.223.160 8443 tcp
 ```
 
-Without `--autologin`, `GetUserlogin` is used and the client prompts for `vpnuser` / password.
+Without `--autologin`, `GetUserlogin` is used and the client prompts for `calogero007` / password.
 
 Same thing by hand:
 
@@ -109,17 +118,17 @@ docker exec openvpn-as \
 docker exec openvpn-as /usr/local/openvpn_as/scripts/sacli start
 
 docker exec openvpn-as \
-  /usr/local/openvpn_as/scripts/sacli --user vpnuser --key "type" --value "user_connect" UserPropPut
+  /usr/local/openvpn_as/scripts/sacli --user calogero007 --key "type" --value "user_connect" UserPropPut
 docker exec openvpn-as \
-  /usr/local/openvpn_as/scripts/sacli --user vpnuser --new_pass 'choose-a-strong-password' SetPassword
+  /usr/local/openvpn_as/scripts/sacli --user calogero007 --new_pass 'choose-a-strong-password' SetPassword
 
 docker exec openvpn-as \
-  /usr/local/openvpn_as/scripts/sacli --user vpnuser GetUserlogin \
-  > vpnuser.ovpn
+  /usr/local/openvpn_as/scripts/sacli --user calogero007 GetUserlogin \
+  > calogero007.ovpn
 # then change any "remote ... 443" line to "remote 13.143.223.160 8443"
 ```
 
-You can also log into `https://13.143.223.160:8443/` as `vpnuser` and use **Yourself (user-locked profile)** — after download, still change TCP `443` to `8443` unless Network Settings already advertise 8443.
+You can also log into `https://13.143.223.160:8443/` as `calogero007` and use **Yourself (user-locked profile)** — after download, still change TCP `443` to `8443` unless Network Settings already advertise 8443.
 
 ## Stop / remove
 

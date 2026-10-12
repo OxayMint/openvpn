@@ -1,2 +1,4 @@
 .env
 profiles/*.ovpn
+__pycache__/
+*.pyc
