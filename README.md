@@ -123,7 +123,7 @@ You can also log into `https://13.143.223.160:8443/` as `vpnuser` and use **Your
 
 ## krakkenVPN bot
 
-krakkenVPN is the Telegram bot that creates Access Server client profiles and sends the `.ovpn` file in chat. It introduces itself as krakkenVPN and talks in first person.
+krakkenVPN is the Telegram bot that creates Access Server client profiles and sends the `.ovpn` file in chat. It introduces itself as krakkenVPN and speaks in first person as a mighty kraken of the deep.
 
 1. Message [@BotFather](https://t.me/BotFather) → `/newbot` and copy the token.
 2. Set these in `.env`:
