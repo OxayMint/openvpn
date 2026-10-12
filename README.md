@@ -121,6 +121,32 @@ docker exec openvpn-as \
 
 You can also log into `https://13.143.223.160:8443/` as `vpnuser` and use **Yourself (user-locked profile)** — after download, still change TCP `443` to `8443` unless Network Settings already advertise 8443.
 
+## Telegram bot
+
+A companion bot lets the configured Telegram admin create a client profile without using the Access Server UI.
+
+1. Message [@BotFather](https://t.me/BotFather) → `/newbot` and copy the token.
+2. Set these in `.env`:
+
+   ```bash
+   TELEGRAM_BOT_TOKEN=123456:ABC...
+   TELEGRAM_ADMIN_USERNAME=your_telegram_username
+   ```
+
+   `TELEGRAM_ADMIN_USERNAME` is the Telegram handle (with or without `@`). That account must have a public username set.
+
+3. Recreate the stack so the bot starts:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+4. Open a private chat with the bot and send `/create`. It asks for the new OpenVPN username, creates the user on Access Server, and sends back an autologin `.ovpn` file.
+
+`/cancel` aborts the prompt. Anyone else who messages the bot is rejected. The bot talks to Access Server through the host Docker socket (`docker exec` / `sacli`), so it must run on the same Docker host as `openvpn-as`.
+
+If `TELEGRAM_BOT_TOKEN` or `TELEGRAM_ADMIN_USERNAME` is empty, the bot container stays up but idle and logs that it is waiting for those variables.
+
 ## Stop / remove
 
 ```bash

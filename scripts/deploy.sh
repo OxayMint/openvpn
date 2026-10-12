@@ -69,3 +69,8 @@ echo
 echo "First-run admin password is printed in: docker logs ${CONTAINER_NAME}"
 echo "In Admin → Configuration → Network Settings, set the public TCP port to ${HOST_HTTPS_PORT}"
 echo "so downloaded client profiles match the published host port."
+if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && -n "${TELEGRAM_ADMIN_USERNAME:-}" ]]; then
+  echo "Telegram bot: DM the bot as @${TELEGRAM_ADMIN_USERNAME#@} and send /create"
+else
+  echo "Telegram bot is idle until TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_USERNAME are set in .env"
+fi
