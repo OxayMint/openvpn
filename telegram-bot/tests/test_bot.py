@@ -35,7 +35,7 @@ async def test_start_introduces_krakkenvpn_to_admin(admin_env):
     await bot.start(update, MagicMock())
     text = update.message.reply_text.await_args.args[0]
     assert text == voice.START_ADMIN
-    assert text.startswith("Hey — I'm KrakkenVPN.")
+    assert text.startswith("Hey — I'm krakkenVPN.")
 
 
 @pytest.mark.asyncio
@@ -43,7 +43,7 @@ async def test_start_introduces_krakkenvpn_to_user(admin_env):
     update = _update(username="eve")
     await bot.start(update, MagicMock())
     text = update.message.reply_text.await_args.args[0]
-    assert "I'm KrakkenVPN" in text
+    assert "I'm krakkenVPN" in text
     assert "eve" in text
 
 
@@ -62,7 +62,7 @@ async def test_create_for_non_admin_uses_telegram_username(admin_env):
     assert b"# eve" in document.input_file_content
     caption = update.message.reply_document.await_args.kwargs["caption"]
     assert caption == voice.PROFILE_CAPTION.format(username="eve")
-    assert "KrakkenVPN" in caption
+    assert "krakkenVPN" in caption
 
 
 @pytest.mark.asyncio
@@ -79,7 +79,7 @@ async def test_create_asks_for_username(admin_env):
     result = await bot.create_start(update, MagicMock())
     assert result == bot.WAITING_FOR_USERNAME
     assert update.message.reply_text.await_args.args[0] == voice.ASK_PROFILE_USERNAME
-    assert "KrakkenVPN" in update.message.reply_text.await_args.args[0]
+    assert "krakkenVPN" in update.message.reply_text.await_args.args[0]
 
 
 @pytest.mark.asyncio
@@ -111,7 +111,7 @@ async def test_valid_username_sends_ovpn(admin_env):
     document = update.message.reply_document.await_args.kwargs["document"]
     assert document.filename == "vpnuser.ovpn"
     assert document.input_file_content.startswith(b"client")
-    assert "KrakkenVPN" in update.message.reply_document.await_args.kwargs["caption"]
+    assert "krakkenVPN" in update.message.reply_document.await_args.kwargs["caption"]
 
 
 @pytest.mark.asyncio

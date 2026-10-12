@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""KrakkenVPN Telegram bot: /create issues an .ovpn profile."""
+"""krakkenVPN Telegram bot: /create issues an .ovpn profile."""
 
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ async def post_init(application: Application) -> None:
         await application.bot.set_my_short_description(voice.BOT_SHORT_DESCRIPTION)
         await application.bot.set_my_description(voice.BOT_DESCRIPTION)
     except Exception:
-        logger.warning("Could not update the KrakkenVPN bot profile on Telegram", exc_info=True)
+        logger.warning("Could not update the krakkenVPN bot profile on Telegram", exc_info=True)
 
 
 def build_application(token: str) -> Application:
@@ -180,13 +180,13 @@ def main() -> None:
         missing.append("TELEGRAM_ADMIN_USERNAME")
     if missing:
         logger.error(
-            "KrakkenVPN bot is idle: set %s in the environment.",
+            "krakkenVPN bot is idle: set %s in the environment.",
             " and ".join(missing),
         )
         signal.pause()
         return
 
-    logger.info("Starting KrakkenVPN bot for admin @%s", admin)
+    logger.info("Starting krakkenVPN bot for admin @%s", admin)
     application = build_application(token)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
