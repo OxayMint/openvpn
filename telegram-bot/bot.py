@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Telegram bot: admin /create → ask for a username → send the .ovpn profile."""
+"""KrakkenVPN Telegram bot: /create issues an .ovpn profile."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from telegram.ext import (
     filters,
 )
 
+import voice
 from auth import configured_admin_username, is_admin_username
 from ovpn import ProfileError, create_ovpn_profile, validate_username
 
@@ -28,7 +29,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logging.getLogger("httpx").setLevel(logging.WARNING)
-logger = logging.getLogger("telegram-bot")
+logger = logging.getLogger("krakkenvpn")
 
 WAITING_FOR_USERNAME = 1
 
@@ -42,23 +43,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
     if _from_admin(update):
-        await update.message.reply_text(
-            "Send /create to make a new OpenVPN profile.\n"
-            "I will ask for the profile username, then send the .ovpn file.\n"
-            "Send /cancel to abort."
-        )
+        await update.message.reply_text(voice.START_ADMIN)
         return
     user = update.effective_user
     if not user or not user.username:
-        await update.message.reply_text(
-            "Set a public Telegram username in Settings, then send /create "
-            "to get an OpenVPN profile."
-        )
+        await update.message.reply_text(voice.START_NEEDS_USERNAME)
         return
-    await update.message.reply_text(
-        "Send /create in this private chat to get an OpenVPN profile named "
-        f"after your Telegram username ({user.username})."
-    )
+    await update.message.reply_text(voice.START_USER.format(username=user.username))
 
 
 async def create_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -66,19 +57,15 @@ async def create_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ConversationHandler.END
     chat = update.effective_chat
     if chat is None or chat.type != ChatType.PRIVATE:
-        await update.message.reply_text("Use /create in a private chat with this bot.")
+        await update.message.reply_text(voice.NEED_PRIVATE_CHAT)
         return ConversationHandler.END
     if _from_admin(update):
-        await update.message.reply_text(
-            "What username should the new OpenVPN profile use?\nSend /cancel to abort."
-        )
+        await update.message.reply_text(voice.ASK_PROFILE_USERNAME)
         return WAITING_FOR_USERNAME
 
     user = update.effective_user
     if not user or not user.username:
-        await update.message.reply_text(
-            "Set a public Telegram username in Settings, then send /create again."
-        )
+        await update.message.reply_text(voice.NEED_TELEGRAM_USERNAME)
         return ConversationHandler.END
     return await _create_and_send(update, context, user.username)
 
@@ -87,13 +74,13 @@ async def receive_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not update.message or not update.message.text:
         return WAITING_FOR_USERNAME
     if not _from_admin(update):
-        await update.message.reply_text("You are not allowed to choose a custom username.")
+        await update.message.reply_text(voice.CUSTOM_USERNAME_DENIED)
         return ConversationHandler.END
 
     try:
         username = validate_username(update.message.text)
     except ValueError as exc:
-        await update.message.reply_text(f"{exc}\nSend another username, or /cancel.")
+        await update.message.reply_text(voice.INVALID_USERNAME.format(error=exc))
         return WAITING_FOR_USERNAME
 
     return await _create_and_send(update, context, username)
@@ -109,7 +96,7 @@ async def _create_and_send(
         await update.message.reply_text(str(exc))
         return ConversationHandler.END
     requester = update.effective_user.username if update.effective_user else "?"
-    await update.message.reply_text(f"Creating an OpenVPN profile for {username}…")
+    await update.message.reply_text(voice.CREATING.format(username=username))
     logger.info("User %s requested profile %s", requester, username)
 
     create = context.application.bot_data.get("create_profile", create_ovpn_profile)
@@ -117,42 +104,42 @@ async def _create_and_send(
         profile = await asyncio.to_thread(create, username)
     except ProfileError as exc:
         logger.warning("Profile creation failed for %s: %s", username, exc)
-        await update.message.reply_text(f"Could not create the profile: {exc}")
+        await update.message.reply_text(voice.CREATE_FAILED.format(error=exc))
         return ConversationHandler.END
     except Exception:
         logger.exception("Unexpected error creating profile %s", username)
-        await update.message.reply_text("Could not create the profile. Check the bot logs.")
+        await update.message.reply_text(voice.CREATE_FAILED_UNKNOWN)
         return ConversationHandler.END
 
     await update.message.reply_document(
         document=InputFile(profile.encode("utf-8"), filename=f"{username}.ovpn"),
-        caption=f"OpenVPN profile for {username}. Import this file in OpenVPN Connect.",
+        caption=voice.PROFILE_CAPTION.format(username=username),
     )
     return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message:
-        await update.message.reply_text("Cancelled.")
+        await update.message.reply_text(voice.CANCELLED)
     return ConversationHandler.END
 
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.exception("Unhandled bot error: %s", context.error)
     if isinstance(update, Update) and update.effective_message:
-        await update.effective_message.reply_text(
-            "Something went wrong. Try /create again."
-        )
+        await update.effective_message.reply_text(voice.UNHANDLED_ERROR)
 
 
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands(
-        [
-            BotCommand("start", "Show help"),
-            BotCommand("create", "Create a new OpenVPN profile"),
-            BotCommand("cancel", "Cancel the current operation"),
-        ]
+        [BotCommand(command, description) for command, description in voice.BOT_COMMANDS]
     )
+    try:
+        await application.bot.set_my_name(voice.BOT_NAME)
+        await application.bot.set_my_short_description(voice.BOT_SHORT_DESCRIPTION)
+        await application.bot.set_my_description(voice.BOT_DESCRIPTION)
+    except Exception:
+        logger.warning("Could not update the KrakkenVPN bot profile on Telegram", exc_info=True)
 
 
 def build_application(token: str) -> Application:
@@ -193,13 +180,13 @@ def main() -> None:
         missing.append("TELEGRAM_ADMIN_USERNAME")
     if missing:
         logger.error(
-            "Telegram bot is idle: set %s in the environment.",
+            "KrakkenVPN bot is idle: set %s in the environment.",
             " and ".join(missing),
         )
         signal.pause()
         return
 
-    logger.info("Starting Telegram bot for admin @%s", admin)
+    logger.info("Starting KrakkenVPN bot for admin @%s", admin)
     application = build_application(token)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
