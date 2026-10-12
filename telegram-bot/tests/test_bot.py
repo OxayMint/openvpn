@@ -35,7 +35,7 @@ async def test_start_introduces_krakkenvpn_to_admin(admin_env):
     await bot.start(update, MagicMock())
     text = update.message.reply_text.await_args.args[0]
     assert text == voice.START_ADMIN
-    assert text.startswith("Hey — I'm krakkenVPN.")
+    assert text.startswith("I am krakkenVPN, ancient lord of the deep")
 
 
 @pytest.mark.asyncio
@@ -43,7 +43,7 @@ async def test_start_introduces_krakkenvpn_to_user(admin_env):
     update = _update(username="eve")
     await bot.start(update, MagicMock())
     text = update.message.reply_text.await_args.args[0]
-    assert "I'm krakkenVPN" in text
+    assert "I am krakkenVPN" in text
     assert "eve" in text
 
 
