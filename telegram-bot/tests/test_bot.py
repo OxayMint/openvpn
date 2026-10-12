@@ -29,12 +29,26 @@ def admin_env(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_create_rejects_non_admin(admin_env):
+async def test_create_for_non_admin_uses_telegram_username(admin_env):
     update = _update(username="eve")
+    context = MagicMock()
+    context.application.bot_data = {
+        "create_profile": lambda name: f"client\n# {name}\n"
+    }
+    result = await bot.create_start(update, context)
+    assert result == ConversationHandler.END
+    update.message.reply_document.assert_awaited()
+    document = update.message.reply_document.await_args.kwargs["document"]
+    assert document.filename == "eve.ovpn"
+    assert b"# eve" in document.input_file_content
+
+
+@pytest.mark.asyncio
+async def test_create_requires_telegram_username_for_non_admin(admin_env):
+    update = _update(username=None)
     result = await bot.create_start(update, MagicMock())
     assert result == ConversationHandler.END
-    update.message.reply_text.assert_awaited()
-    assert "not allowed" in update.message.reply_text.await_args.args[0]
+    assert "Telegram username" in update.message.reply_text.await_args.args[0]
 
 
 @pytest.mark.asyncio

@@ -38,45 +38,57 @@ def _from_admin(update: Update) -> bool:
     return bool(user) and is_admin_username(user.username)
 
 
-async def _deny(update: Update) -> int:
-    if update.message:
-        await update.message.reply_text("You are not allowed to use this bot.")
-    return ConversationHandler.END
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message:
         return
-    if not _from_admin(update):
-        await _deny(update)
+    if _from_admin(update):
+        await update.message.reply_text(
+            "Send /create to make a new OpenVPN profile.\n"
+            "I will ask for the profile username, then send the .ovpn file.\n"
+            "Send /cancel to abort."
+        )
+        return
+    user = update.effective_user
+    if not user or not user.username:
+        await update.message.reply_text(
+            "Set a public Telegram username in Settings, then send /create "
+            "to get an OpenVPN profile."
+        )
         return
     await update.message.reply_text(
-        "Send /create to make a new OpenVPN profile.\n"
-        "I will ask for the profile username, then send the .ovpn file.\n"
-        "Send /cancel to abort."
+        "Send /create in this private chat to get an OpenVPN profile named "
+        f"after your Telegram username ({user.username})."
     )
 
 
 async def create_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not update.message:
         return ConversationHandler.END
-    if not _from_admin(update):
-        return await _deny(update)
     chat = update.effective_chat
     if chat is None or chat.type != ChatType.PRIVATE:
         await update.message.reply_text("Use /create in a private chat with this bot.")
         return ConversationHandler.END
-    await update.message.reply_text(
-        "What username should the new OpenVPN profile use?\nSend /cancel to abort."
-    )
-    return WAITING_FOR_USERNAME
+    if _from_admin(update):
+        await update.message.reply_text(
+            "What username should the new OpenVPN profile use?\nSend /cancel to abort."
+        )
+        return WAITING_FOR_USERNAME
+
+    user = update.effective_user
+    if not user or not user.username:
+        await update.message.reply_text(
+            "Set a public Telegram username in Settings, then send /create again."
+        )
+        return ConversationHandler.END
+    return await _create_and_send(update, context, user.username)
 
 
 async def receive_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not update.message or not update.message.text:
         return WAITING_FOR_USERNAME
     if not _from_admin(update):
-        return await _deny(update)
+        await update.message.reply_text("You are not allowed to choose a custom username.")
+        return ConversationHandler.END
 
     try:
         username = validate_username(update.message.text)
@@ -84,12 +96,21 @@ async def receive_username(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(f"{exc}\nSend another username, or /cancel.")
         return WAITING_FOR_USERNAME
 
+    return await _create_and_send(update, context, username)
+
+
+async def _create_and_send(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, username: str
+) -> int:
+    assert update.message is not None
+    try:
+        username = validate_username(username)
+    except ValueError as exc:
+        await update.message.reply_text(str(exc))
+        return ConversationHandler.END
+    requester = update.effective_user.username if update.effective_user else "?"
     await update.message.reply_text(f"Creating an OpenVPN profile for {username}…")
-    logger.info(
-        "Admin %s requested profile %s",
-        update.effective_user.username if update.effective_user else "?",
-        username,
-    )
+    logger.info("User %s requested profile %s", requester, username)
 
     create = context.application.bot_data.get("create_profile", create_ovpn_profile)
     try:
