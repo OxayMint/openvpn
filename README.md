@@ -121,9 +121,9 @@ docker exec openvpn-as \
 
 You can also log into `https://13.143.223.160:8443/` as `vpnuser` and use **Yourself (user-locked profile)** — after download, still change TCP `443` to `8443` unless Network Settings already advertise 8443.
 
-## KrakkenVPN bot
+## krakkenVPN bot
 
-KrakkenVPN is the Telegram bot that creates Access Server client profiles and sends the `.ovpn` file in chat. It introduces itself as KrakkenVPN and talks in first person.
+krakkenVPN is the Telegram bot that creates Access Server client profiles and sends the `.ovpn` file in chat. It introduces itself as krakkenVPN and talks in first person.
 
 1. Message [@BotFather](https://t.me/BotFather) → `/newbot` and copy the token.
 2. Set these in `.env`:
@@ -135,19 +135,19 @@ KrakkenVPN is the Telegram bot that creates Access Server client profiles and se
 
    `TELEGRAM_ADMIN_USERNAME` is the Telegram handle (with or without `@`). That account must have a public username set.
 
-3. Recreate the stack so KrakkenVPN starts:
+3. Recreate the stack so krakkenVPN starts:
 
    ```bash
    docker compose up -d --build
    ```
 
-4. Open a private chat with KrakkenVPN and send `/create`:
+4. Open a private chat with krakkenVPN and send `/create`:
    - **Admin** (`TELEGRAM_ADMIN_USERNAME`) is asked for the new OpenVPN username, then receives that `.ovpn`.
    - **Anyone else** gets a profile named after their Telegram username, and the `.ovpn` is sent to them.
 
-`/cancel` aborts the admin prompt. KrakkenVPN talks to Access Server through the host Docker socket (`docker exec` / `sacli`), so it must run on the same Docker host as `openvpn-as`. Users must have a public Telegram username set.
+`/cancel` aborts the admin prompt. krakkenVPN talks to Access Server through the host Docker socket (`docker exec` / `sacli`), so it must run on the same Docker host as `openvpn-as`. Users must have a public Telegram username set.
 
-If `TELEGRAM_BOT_TOKEN` or `TELEGRAM_ADMIN_USERNAME` is empty, the KrakkenVPN container stays up but idle and logs that it is waiting for those variables.
+If `TELEGRAM_BOT_TOKEN` or `TELEGRAM_ADMIN_USERNAME` is empty, the krakkenVPN container stays up but idle and logs that it is waiting for those variables.
 
 ## Stop / remove
 
