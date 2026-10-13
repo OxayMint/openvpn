@@ -37,8 +37,8 @@ port_in_use() {
 
 mkdir -p "${OVPN_DATA}"
 
-if port_in_use "${HOST_ADMIN_PORT}"; then
-  echo "Host port ${HOST_ADMIN_PORT} (admin UI) is already allocated. Set HOST_ADMIN_PORT in .env to a free port." >&2
+if [[ -e "${OVPN_DATA}/as.conf" || -d "${OVPN_DATA}/etc" ]]; then
+  echo "${OVPN_DATA} looks like OpenVPN Access Server data. Set OVPN_DATA to a new directory (for example /root/openvpn-pki)." >&2
   exit 1
 fi
 
@@ -57,18 +57,16 @@ if port_in_use 443 && [[ "${HOST_HTTPS_PORT}" == "443" ]]; then
   exit 1
 fi
 
-docker compose pull
-docker compose up -d
+docker compose down --remove-orphans >/dev/null 2>&1 || true
+docker compose up -d --build
 
 echo
-echo "OpenVPN Access Server is up."
-echo "  Admin UI:     https://<host>:${HOST_ADMIN_PORT}/admin"
-echo "  Client portal: https://<host>:${HOST_HTTPS_PORT}/"
+echo "Community OpenVPN is up (no 2-connection Access Server license)."
 echo "  UDP VPN:      <host>:${HOST_UDP_PORT}/udp"
+echo "  TCP fallback: <host>:${HOST_HTTPS_PORT}/tcp"
+echo "  max-clients:  ${MAX_CLIENTS:-4096} per protocol"
 echo
-echo "First-run admin password is printed in: docker logs ${CONTAINER_NAME}"
-echo "In Admin → Configuration → Network Settings, set the public TCP port to ${HOST_HTTPS_PORT}"
-echo "so downloaded client profiles match the published host port."
+echo "Existing Access Server .ovpn files will not work with this CA — issue new profiles."
 if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && -n "${TELEGRAM_ADMIN_USERNAME:-}" ]]; then
   echo "krakkenVPN bot: DM it as @${TELEGRAM_ADMIN_USERNAME#@} and send /create"
 else
