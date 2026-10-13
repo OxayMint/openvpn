@@ -19,6 +19,16 @@ CERT
 </ca>
 """
 
+ISSUED_PROFILE = """\
+client
+dev tun
+remote 13.143.223.160 1194 udp
+remote 13.143.223.160 8443 tcp
+<ca>
+CERT
+</ca>
+"""
+
 
 def test_validate_username_accepts_simple_names():
     assert ovpn.validate_username("  vpnuser  ") == "vpnuser"
@@ -49,23 +59,18 @@ def test_rewrite_profile_rejects_empty():
 
 
 class FakeContainer:
-    def __init__(self, existing=None, profile=SAMPLE_PROFILE):
-        self.existing = set(existing or [])
+    def __init__(self, profile=ISSUED_PROFILE, fail_times=0):
         self.profile = profile
         self.status = "running"
         self.calls: list[list[str]] = []
+        self.fail_times = fail_times
 
     def exec_run(self, cmd, demux=False):
         self.calls.append(list(cmd))
-        action = cmd[-1]
-        if action == "UserPropGet":
-            username = cmd[cmd.index("--user") + 1]
-            if username in self.existing:
-                return SimpleNamespace(exit_code=0, output=(b"type=user_connect", b""))
-            return SimpleNamespace(exit_code=1, output=(b"", b"NO_HOST_INFO"))
-        if action == "GetAutologin":
-            return SimpleNamespace(exit_code=0, output=(self.profile.encode(), b""))
-        return SimpleNamespace(exit_code=0, output=(b"OK", b""))
+        if self.fail_times > 0:
+            self.fail_times -= 1
+            return SimpleNamespace(exit_code=1, output=(b"", b"OpenVPN PKI is not ready."))
+        return SimpleNamespace(exit_code=0, output=(self.profile.encode(), b""))
 
 
 class FakeClient:
@@ -73,29 +78,27 @@ class FakeClient:
         self.containers = SimpleNamespace(get=lambda name: container)
 
 
-def test_create_ovpn_profile_creates_missing_user_and_rewrites(monkeypatch):
+def test_create_ovpn_profile_issues_cert_and_rewrites(monkeypatch):
     monkeypatch.setenv("PUBLIC_HOST", "13.143.223.160")
     monkeypatch.setenv("HOST_HTTPS_PORT", "8443")
     monkeypatch.setenv("HOST_UDP_PORT", "1194")
-    monkeypatch.setenv("CONTAINER_NAME", "openvpn-as")
+    monkeypatch.setenv("CONTAINER_NAME", "openvpn")
     container = FakeContainer()
     profile = ovpn.create_ovpn_profile("vpnuser", docker_client=FakeClient(container))
 
-    actions = [call[-1] for call in container.calls]
-    assert "UserPropPut" in actions
-    assert "SetPassword" in actions
-    assert "GetAutologin" in actions
+    assert container.calls == [[ovpn.ISSUE_PROFILE, "vpnuser"]]
     assert "remote 13.143.223.160 8443 tcp" in profile
+    assert "remote 13.143.223.160 1194 udp" in profile
     assert profile.startswith("client")
 
 
-def test_create_ovpn_profile_skips_password_for_existing_user(monkeypatch):
+def test_create_ovpn_profile_retries_until_pki_ready(monkeypatch):
     monkeypatch.setenv("PUBLIC_HOST", "13.143.223.160")
-    container = FakeContainer(existing={"vpnuser"})
-    ovpn.create_ovpn_profile("vpnuser", docker_client=FakeClient(container))
-    actions = [call[-1] for call in container.calls]
-    assert "SetPassword" not in actions
-    assert "GetAutologin" in actions
+    monkeypatch.setattr(ovpn.time, "sleep", lambda _seconds: None)
+    container = FakeContainer(fail_times=2)
+    profile = ovpn.create_ovpn_profile("vpnuser", docker_client=FakeClient(container))
+    assert len(container.calls) == 3
+    assert profile.startswith("client")
 
 
 def test_create_ovpn_profile_requires_public_host(monkeypatch):

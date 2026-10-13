@@ -3,7 +3,7 @@ set -euo pipefail
 
 ports=("$@")
 if [[ ${#ports[@]} -eq 0 ]]; then
-  ports=(443 943 1194 8443)
+  ports=(443 1194 8443)
 fi
 
 echo "Listening sockets that match requested ports:"

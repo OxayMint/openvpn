@@ -1,18 +1,26 @@
 services:
-  openvpn-as:
-    image: openvpn/openvpn-as:latest
-    container_name: ${CONTAINER_NAME:-openvpn-as}
+  openvpn:
+    build:
+      context: ./openvpn
+    image: openvpn-community:local
+    container_name: ${CONTAINER_NAME:-openvpn}
     devices:
       - /dev/net/tun:/dev/net/tun
     cap_add:
       - MKNOD
       - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
     ports:
-      - "${HOST_ADMIN_PORT:-943}:943"
       - "${HOST_HTTPS_PORT:-8443}:443"
       - "${HOST_UDP_PORT:-1194}:1194/udp"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:-}
+      HOST_HTTPS_PORT: ${HOST_HTTPS_PORT:-8443}
+      HOST_UDP_PORT: ${HOST_UDP_PORT:-1194}
+      MAX_CLIENTS: ${MAX_CLIENTS:-4096}
     volumes:
-      - ${OVPN_DATA:-/root/openvpn-data}:/openvpn
+      - ${OVPN_DATA:-/root/openvpn-pki}:/etc/openvpn
     restart: unless-stopped
 
   telegram-bot:
@@ -23,12 +31,12 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_ADMIN_USERNAME: ${TELEGRAM_ADMIN_USERNAME:-}
-      CONTAINER_NAME: ${CONTAINER_NAME:-openvpn-as}
+      CONTAINER_NAME: ${CONTAINER_NAME:-openvpn}
       PUBLIC_HOST: ${PUBLIC_HOST:-}
       HOST_HTTPS_PORT: ${HOST_HTTPS_PORT:-8443}
       HOST_UDP_PORT: ${HOST_UDP_PORT:-1194}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - openvpn-as
+      - openvpn
     restart: unless-stopped
